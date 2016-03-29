@@ -68,12 +68,12 @@ char *ReadBinary(char fileName[32]) {
     6 * (8bits) * 6 -> strlen is 36.
     */
     #ifdef DEBUG
-        printf("Expected filesize %d, got filesize %d", lSize, result);
+        printf("Expected filesize %lu, got filesize %lu\n", lSize, result);
     #endif
 
     // Check whether it's % 3 since every instruction is *exactly* 3 bytes
     if(result % 3 != 0) {
-        printf("Corrupted ROM? Need 3 byte instructions, got total of %d???", result % 3);
+        printf("Corrupted ROM? Need 3 byte instructions, got total of %lu???", result % 3);
         return NULL;
     }
 

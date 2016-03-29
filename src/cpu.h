@@ -7,5 +7,5 @@
 
     char *HandleInstruction(char *binaryFile);
     char LoadRegister(char offset, char *registers);
-    char StoreRegister(char toRegister, char offset, char *registers);
+    int StoreRegister(char toRegister, char offset, char *registers);
 #endif
