@@ -1,25 +1,5 @@
 #include "cpu.h"
 
-char *__reg_map[] = {
-    "R0",
-    "R1",
-    "R2",
-    "R3",
-    "R4",
-    "R5",
-    "R6",
-    "R7", // 8
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    "BA", // 16 0b00010000 <=> 0x10
-    "BB",
-    "D0",
-    "D1",
-    "D2",
-    "D3",
-    "PC",
-    "CR"
-};
-
 char *HandleInstruction(char *binaryFile) {
     char arg1, arg2;
     // Construct registers
@@ -38,7 +18,41 @@ char *HandleInstruction(char *binaryFile) {
 
                 StoreRegister(arg1, LoadRegister(arg2, registers), registers);
             break;
+            case 0b01100001: // MOV %RX, C
+                #ifdef DEBUG
+                printf("Command is MOV CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, arg2, registers);
+            break;
+            case 0b001000000: // CMP %RX, %RY
+                #ifdef DEBUG
+                printf("Command is CMP [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                // Store to CR, arg1-arg2, LEFT-RIGHT.
+                StoreRegister(0b00010111, (LoadRegister(arg1, registers) - LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b001000001: // CMP %RX, C
+                #ifdef DEBUG
+                printf("Command is CMP CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                // Store to CR, arg1-C.
+                StoreRegister(0b00010111, (LoadRegister(arg1, registers) - arg2), registers);
+            break;
+            case 0b001010000: // BR C
+                #ifdef DEBUG
+                printf("Command is BR [%s]\n", __reg_map[(int)arg1]);
+                #endif
+
+                // BRANCH jmps absolutely and not relatively to PC, so adjust "PC"
+                i = arg1; // 나느ㄷ아 코레 . . . 
+            break;
+
         }
+
+        registers[27] = i; // PC++
     }
 
     #ifdef DEBUG
