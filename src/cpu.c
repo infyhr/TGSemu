@@ -1,12 +1,40 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "cpu.h"
 
-char *HandleInstruction(char *binaryFile) {
+const char *__reg_map[] = {
+        "R0",
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7", // 8
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        "BA", // 16 0b00010000 <=> 0x10
+        "BB",
+        "D0",
+        "D1",
+        "D2",
+        "D3",
+        "PC",
+        "CR"
+};
+
+char *HandleInstruction(char *binaryFile, int *bufferSize) {
     char arg1, arg2;
     // Construct registers
     char *registers = (char *)calloc(27, sizeof(char));
+    if(!registers) {
+        printf("calloc failed.");
+        return NULL;
+    }
 
     // Parse binary file 3 by 3 bytes
-    for(short i = 0; i < strlen(binaryFile); i = i+3) {
+    for(short i = 0; i < bufferSize; i = i+3) {
+        printf("i = %d\t", i);
         arg1   = (int)binaryFile[i+1];
         arg2   = (int)binaryFile[i+2];
 
@@ -47,9 +75,151 @@ char *HandleInstruction(char *binaryFile) {
                 #endif
 
                 // BRANCH jmps absolutely and not relatively to PC, so adjust "PC"
-                i = arg1; // 나느ㄷ아 코레 . . . 
+                i = arg1-3; // pseudo program counter.
+                StoreRegister(0b00010110, i, registers);
             break;
+            case 0b00010000: // ADD %RX, %RY
+                #ifdef DEBUG
+                printf("Command is ADD [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
 
+                StoreRegister(arg1, (LoadRegister(arg1, registers) + LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00010001: // ADD %RX, C
+                #ifdef DEBUG
+                printf("Command is ADD CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) + arg2), registers);
+            break;
+            case 0b00010010: // SUB %RX, %RY
+                #ifdef DEBUG
+                printf("Command is SUB [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) - LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00010011: // ADD %RX, C
+                #ifdef DEBUG
+                printf("Command is SUB CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) - arg2), registers);
+            break;
+            case 0b00100000: // LSH %RX, %RY
+                #ifdef DEBUG
+                printf("Command is LSH [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) << LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00100001: // LSH %RX, C
+                #ifdef DEBUG
+                printf("Command is LSH CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) << arg2), registers);
+            break;
+            case 0b00100010: // RSH %RX, %RY
+                #ifdef DEBUG
+                printf("Command is RSH [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) >> LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00100011: // RSH %RX, C
+                #ifdef DEBUG
+                printf("Command is RSH CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) >> arg2), registers);
+            break;
+            case 0b00110000: // AND %RX, %RY
+                #ifdef DEBUG
+                printf("Command is AND [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) & LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00110001: // AND %RX, C
+                #ifdef DEBUG
+                printf("Command is AND CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) & arg2), registers);
+            break;
+            case 0b00110010: // OR %RX, %RY
+                #ifdef DEBUG
+                printf("Command is OR [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) | LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00110011: // OR %RX, C
+                #ifdef DEBUG
+                printf("Command is OR CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) | arg2), registers);
+            break;
+            case 0b00110100: // XOR %RX, %RY
+                #ifdef DEBUG
+                printf("Command is XOR [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) ^ LoadRegister(arg2, registers)), registers);
+            break;
+            case 0b00110101: // XOR %RX, C
+                #ifdef DEBUG
+                printf("Command is XOR CONSTANT [%s][%s]\n", __reg_map[(int)arg1], __reg_map[(int)arg2]);
+                #endif
+
+                StoreRegister(arg1, (LoadRegister(arg1, registers) ^ arg2), registers);
+            break;
+            case 0b01010010: // BE C
+                #ifdef DEBUG
+                printf("Command is BE [%s]\n", __reg_map[(int)arg1]);
+                #endif
+
+                // BE, absolutely.
+                if(LoadRegister(0b0001011, registers) == 0) {
+                    i = arg1-3;
+                    StoreRegister(0b00010110, i, registers);
+                }
+            break;
+            case 0b01010100: // BNE C
+                #ifdef DEBUG
+                printf("Command is BNE [%s]\n", __reg_map[(int)arg1]);
+                #endif
+
+                // BNE, absolutely.
+                if(LoadRegister(0b0001011, registers) != 0) {
+                    i = arg1-3;
+                    StoreRegister(0b00010110, i, registers);
+                }
+            break;
+            case 0b01010110: // BG C
+                #ifdef DEBUG
+                printf("Command is BNE [%s]\n", __reg_map[(int)arg1]);
+                #endif
+
+                // BG, absolutely.
+                if(LoadRegister(0b0001011, registers) < 128) {
+                    i = arg1-3;
+                    StoreRegister(0b00010110, i, registers);
+                }
+            break;
+            case 0b01011000: // BL C
+                #ifdef DEBUG
+                printf("Command is BNE [%s]\n", __reg_map[(int)arg1]);
+                #endif
+
+                // BL, absolutely.
+                if(LoadRegister(0b0001011, registers) > 127) {
+                    i = arg1-3;
+                    StoreRegister(0b00010110, i, registers);
+                }
+            break;
         }
 
         registers[27] = i; // PC++

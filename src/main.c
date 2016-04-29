@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "cpu.h"
 
-char *ReadBinary(char fileName[32]);
+char *ReadBinary(char fileName[32], int *);
 
 int main(int argc, char **argv) {
     char *binaryFile;
+    int bufferSize;
 
     if(argc != 2) {
         printf("Usage: %s <binary file.bin>\n", argv[0]);
@@ -14,12 +16,12 @@ int main(int argc, char **argv) {
     }
 
     // Grab the binary file
-    binaryFile = ReadBinary(argv[1]);
+    binaryFile = ReadBinary(argv[1], &bufferSize);
     if(!binaryFile) return -1;
 
     // Use cpu.c to construct a register set and then after here do the loop and update the screen with screen.c
     //printf("%s", binaryFile);
-    char *test = HandleInstruction(binaryFile);
+    char *test = HandleInstruction(binaryFile, bufferSize);
     /*for(char i = 0; i < 27; i++) {
         printf("%c\n", test[i]);
     }*/
@@ -28,7 +30,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-char *ReadBinary(char fileName[32]) {
+char *ReadBinary(char fileName[32], int *bufferSize) {
     FILE *pFile;
     long lSize;
     char *buffer;
@@ -84,5 +86,6 @@ char *ReadBinary(char fileName[32]) {
 
     // Close the file and return what we have read.
     fclose(pFile);
+    *bufferSize = result;
     return buffer;
 }
