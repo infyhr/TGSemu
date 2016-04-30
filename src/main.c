@@ -2,15 +2,25 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/select.h>
+#include <termios.h>
 #include "cpu.h"
 
 char *ReadBinary(char fileName[32], int *);
+void reset_terminal_mode();
+void set_conio_terminal_mode();
+int kbhit();
+int getch();
+void handle_keypress();
 
 extern const char *__reg_map[];
+struct termios orig_termios;
+
 int main(int argc, char **argv) {
     char *binaryFile;
-    int bufferSize;
+    int bufferSize, c;
     char *registers = (char *)malloc(sizeof(char) * 27);
+
     if(!registers) {
         printf("malloc failed!\n");
         return -1;
@@ -28,11 +38,22 @@ int main(int argc, char **argv) {
     // Use cpu.c to construct a register set and then after here do the loop and update the screen with screen.c
     //printf("%s", binaryFile);
     // Parse binary file 3x3 bytes
-    registers[0b00010000] = 5;
+    set_conio_terminal_mode();
     for(short i = 0; i < bufferSize; i = i+3) {
         //if(i == 24) break;
-        printf("i = %d\t", i);
+        //printf("i = %d\t", i);
         i = HandleInstruction(binaryFile[i], binaryFile[i+1], binaryFile[i+2], registers, i);
+
+        // Handle keypress
+        if(kbhit()) {
+            c = getchar();
+            if(c == 113) break;
+            if(c == 97) printf("A pressed");
+            if(c == 98) printf("B pressed");
+        }
+        //update_screen();
+
+        fflush(stdout);
         usleep(20);
     }
     printf("printing registers...\n");
@@ -107,4 +128,36 @@ char *ReadBinary(char fileName[32], int *bufferSize) {
     fclose(pFile);
     *bufferSize = result;
     return buffer;
+}
+/* From: http://stackoverflow.com/questions/448944/c-non-blocking-keyboard-input*/
+void reset_terminal_mode() {
+    tcsetattr(0, TCSANOW, &orig_termios);
+}
+void set_conio_terminal_mode() {
+    struct termios new_termios;
+
+    /* take two copies - one for now, one for later */
+    tcgetattr(0, &orig_termios);
+    memcpy(&new_termios, &orig_termios, sizeof(new_termios));
+
+    /* register cleanup handler, and set the new terminal mode */
+    atexit(reset_terminal_mode);
+    cfmakeraw(&new_termios);
+    tcsetattr(0, TCSANOW, &new_termios);
+}
+int kbhit() {
+    struct timeval tv = { 0L, 0L };
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(0, &fds);
+    return select(1, &fds, NULL, NULL, &tv);
+}
+int getch() {
+    int r;
+    unsigned char c;
+    if ((r = read(0, &c, sizeof(c))) < 0) {
+        return r;
+    } else {
+        return c;
+    }
 }
