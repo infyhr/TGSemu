@@ -6,9 +6,15 @@
 
 char *ReadBinary(char fileName[32], int *);
 
+extern const char *__reg_map[];
 int main(int argc, char **argv) {
     char *binaryFile;
     int bufferSize;
+    char *registers = (char *)malloc(sizeof(char) * 27);
+    if(!registers) {
+        printf("malloc failed!\n");
+        return -1;
+    }
 
     if(argc != 2) {
         printf("Usage: %s <binary file.bin>\n", argv[0]);
@@ -21,11 +27,24 @@ int main(int argc, char **argv) {
 
     // Use cpu.c to construct a register set and then after here do the loop and update the screen with screen.c
     //printf("%s", binaryFile);
-    char *test = HandleInstruction(binaryFile, bufferSize);
+    // Parse binary file 3x3 bytes
+    registers[0b00010000] = 5;
+    for(short i = 0; i < bufferSize; i = i+3) {
+        //if(i == 24) break;
+        printf("i = %d\t", i);
+        i = HandleInstruction(binaryFile[i], binaryFile[i+1], binaryFile[i+2], registers, i);
+        usleep(20);
+    }
+    printf("printing registers...\n");
+    for(short i = 0; i < 27; i++) {
+        printf("%s: %c (%d)\n", __reg_map[i], registers[i], (int)registers[i]);
+    }
+    //char *test = HandleInstruction(binaryFile, bufferSize);
     /*for(char i = 0; i < 27; i++) {
         printf("%c\n", test[i]);
     }*/
 
+    free(registers); registers = NULL;
     free(binaryFile); binaryFile = NULL;
     return 0;
 }
