@@ -5,16 +5,8 @@
 #include <sys/select.h>
 #include <termios.h>
 #include "cpu.h"
-
-char *ReadBinary(char fileName[32], int *);
-void reset_terminal_mode();
-void set_conio_terminal_mode();
-int kbhit();
-int getch();
-void handle_keypress();
-
-extern const char *__reg_map[];
-struct termios orig_termios;
+#include "display.h"
+#include "main.h"
 
 int main(int argc, char **argv) {
     char *binaryFile;
@@ -33,37 +25,32 @@ int main(int argc, char **argv) {
 
     // Grab the binary file
     binaryFile = ReadBinary(argv[1], &bufferSize);
-    if(!binaryFile) return -1;
+    if(!binaryFile) { free(registers); registers = NULL; return -1; }
 
-    // Use cpu.c to construct a register set and then after here do the loop and update the screen with screen.c
-    //printf("%s", binaryFile);
     // Parse binary file 3x3 bytes
     set_conio_terminal_mode();
+    printf("\x1B[?25l");  // Hide cursor
+    printf("\x1B[2J");  // Clear screen
     for(short i = 0; i < bufferSize; i = i+3) {
-        //if(i == 24) break;
-        //printf("i = %d\t", i);
         i = HandleInstruction(binaryFile[i], binaryFile[i+1], binaryFile[i+2], registers, i);
 
         // Handle keypress
         if(kbhit()) {
             c = getchar();
             if(c == 113) break;
-            if(c == 97) printf("A pressed");
-            if(c == 98) printf("B pressed");
+            updateButtons(c, registers);
         }
-        //update_screen();
+        updateDisplay(registers);
 
-        fflush(stdout);
-        usleep(20);
+        usleep(20); // f=50kHZ, T = 1/f => 20μs.
     }
+
+    #ifdef DEBUG
     printf("printing registers...\n");
     for(short i = 0; i < 27; i++) {
-        printf("%s: %c (%d)\n", __reg_map[i], registers[i], (int)registers[i]);
+        printf("%s: %c (%d)\n\r", __reg_map[i], registers[i], (int)registers[i]);
     }
-    //char *test = HandleInstruction(binaryFile, bufferSize);
-    /*for(char i = 0; i < 27; i++) {
-        printf("%c\n", test[i]);
-    }*/
+    #endif
 
     free(registers); registers = NULL;
     free(binaryFile); binaryFile = NULL;
@@ -138,7 +125,12 @@ void set_conio_terminal_mode() {
 
     /* take two copies - one for now, one for later */
     tcgetattr(0, &orig_termios);
-    memcpy(&new_termios, &orig_termios, sizeof(new_termios));
+    //memcpy(&new_termios, &orig_termios, sizeof(new_termios));
+
+    new_termios.c_lflag &= !ICANON;
+    new_termios.c_lflag &= !ECHO;
+    new_termios.c_cc[VMIN] = 0;
+    new_termios.c_cc[VTIME] = 0;
 
     /* register cleanup handler, and set the new terminal mode */
     atexit(reset_terminal_mode);
